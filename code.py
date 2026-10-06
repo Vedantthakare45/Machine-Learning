@@ -1,6 +1,6 @@
 # ============================================================
 # HOUSE PRICE PREDICTION
-# Baseline vs Scaled Pipeline
+# Ridge Regression + GridSearchCV
 # ============================================================
 
 # 1. Import libraries
@@ -9,10 +9,10 @@ import numpy as np
 import joblib
 
 from sklearn.datasets import fetch_california_housing
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import Ridge
 from sklearn.metrics import (
     mean_absolute_error,
     mean_squared_error,
@@ -82,7 +82,66 @@ def split_data(X, y):
 
 
 # ============================================================
-# 5. Evaluate Model
+# 5. Create Ridge Pipeline
+# ============================================================
+
+def create_ridge_pipeline():
+    """Create StandardScaler + Ridge Regression pipeline."""
+
+    model = Pipeline([
+        ("scaler", StandardScaler()),
+        ("ridge", Ridge())
+    ])
+
+    return model
+
+
+# ============================================================
+# 6. GridSearchCV for Best Alpha
+# ============================================================
+
+def train_ridge_with_gridsearch(X_train, y_train):
+    """Find the best Ridge alpha using GridSearchCV."""
+
+    model = create_ridge_pipeline()
+
+    # Alpha values to test
+    param_grid = {
+        "ridge__alpha": [
+            0.01,
+            0.1,
+            1,
+            10,
+            100
+        ]
+    }
+
+    grid_search = GridSearchCV(
+        estimator=model,
+        param_grid=param_grid,
+        cv=5,
+        scoring="r2",
+        n_jobs=-1
+    )
+
+    grid_search.fit(
+        X_train,
+        y_train
+    )
+
+    print("\nGridSearchCV completed successfully!")
+
+    print("\nBest Alpha:")
+    print(grid_search.best_params_["ridge__alpha"])
+
+    print("\nBest Cross-Validation R2:")
+    print(grid_search.best_score_)
+
+    return grid_search.best_estimator_
+
+
+# ============================================================
+# 7. Evaluate Model
 # ============================================================
 
 def evaluate_model(model, X_test, y_test):
@@ -111,56 +170,15 @@ def evaluate_model(model, X_test, y_test):
 
 
 # ============================================================
-# 6. Baseline Model
-# ============================================================
-
-def train_baseline_model(X_train, y_train):
-    """Train Linear Regression without feature scaling."""
-
-    baseline_model = LinearRegression()
-
-    baseline_model.fit(
-        X_train,
-        y_train
-    )
-
-    print("\nBaseline model trained successfully!")
-
-    return baseline_model
-
-
-# ============================================================
-# 7. Scaled Pipeline
-# ============================================================
-
-def train_scaled_model(X_train, y_train):
-    """Train StandardScaler + Linear Regression pipeline."""
-
-    model = Pipeline([
-        ("scaler", StandardScaler()),
-        ("regression", LinearRegression())
-    ])
-
-    model.fit(
-        X_train,
-        y_train
-    )
-
-    print("Scaled pipeline trained successfully!")
-
-    return model
-
-
-# ============================================================
 # 8. Display Evaluation Results
 # ============================================================
 
 def display_metrics(title, mae, mse, rmse, r2):
     """Display model evaluation metrics."""
 
-    print("\n" + "=" * 35)
+    print("\n" + "=" * 40)
     print(title)
-    print("=" * 35)
+    print("=" * 40)
 
     print("MAE :", mae)
     print("MSE :", mse)
@@ -169,49 +187,36 @@ def display_metrics(title, mae, mse, rmse, r2):
 
 
 # ============================================================
-# 9. Compare Models
+# 9. Display Best Model Information
 # ============================================================
 
-def compare_models(baseline_r2, scaled_r2):
-    """Compare baseline and scaled model R² scores."""
+def display_best_model(model):
+    """Display the best Ridge model parameters."""
 
-    r2_difference = scaled_r2 - baseline_r2
+    best_alpha = model.named_steps["ridge"].alpha
 
-    print("\n" + "=" * 35)
-    print("R2 COMPARISON")
-    print("=" * 35)
+    print("\n" + "=" * 40)
+    print("BEST RIDGE MODEL")
+    print("=" * 40)
 
-    print("Baseline R2 :", baseline_r2)
-    print("Scaled R2   :", scaled_r2)
-    print("R2 Difference:", r2_difference)
-
-    if scaled_r2 > baseline_r2:
-        print("\nResult: Scaling improved the R2 score.")
-
-    elif scaled_r2 < baseline_r2:
-        print("\nResult: Scaling decreased the R2 score.")
-
-    else:
-        print("\nResult: Scaling produced the same R2 score.")
-
-    return r2_difference
+    print("Best Alpha:", best_alpha)
 
 
 # ============================================================
-# 10. Save Model
+# 10. Save Best Model
 # ============================================================
 
 def save_model(model):
-    """Save the trained scaled pipeline using Joblib."""
+    """Save the best trained Ridge pipeline using Joblib."""
 
-    model_filename = "house_price_model_scaled.pkl"
+    model_filename = "house_price_ridge_best_model.pkl"
 
     joblib.dump(
         model,
         model_filename
     )
 
-    print("\nScaled model saved successfully!")
+    print("\nBest Ridge model saved successfully!")
     print("Saved file:", model_filename)
 
 
@@ -221,60 +226,54 @@ def save_model(model):
 
 def main():
 
-    # Load dataset
+    # --------------------------------------------------------
+    # Load Dataset
+    # --------------------------------------------------------
+
     X, y = load_data()
 
-    # Inspect dataset
+    # --------------------------------------------------------
+    # Inspect Dataset
+    # --------------------------------------------------------
+
     inspect_data(X)
 
-    # Split dataset
+    # --------------------------------------------------------
+    # Split Dataset
+    # --------------------------------------------------------
+
     X_train, X_test, y_train, y_test = split_data(
         X,
         y
     )
 
     # --------------------------------------------------------
-    # Baseline Model
+    # Ridge Regression + GridSearchCV
     # --------------------------------------------------------
 
-    baseline_model = train_baseline_model(
+    best_model = train_ridge_with_gridsearch(
         X_train,
         y_train
     )
 
-    baseline_mae, baseline_mse, baseline_rmse, baseline_r2 = (
-        evaluate_model(
-            baseline_model,
-            X_test,
-            y_test
-        )
-    )
-
-    display_metrics(
-        "BASELINE MODEL EVALUATION",
-        baseline_mae,
-        baseline_mse,
-        baseline_rmse,
-        baseline_r2
-    )
-
     # --------------------------------------------------------
-    # Scaled Pipeline
+    # Display Best Model
     # --------------------------------------------------------
 
-    model = train_scaled_model(
-        X_train,
-        y_train
-    )
+    display_best_model(best_model)
+
+    # --------------------------------------------------------
+    # Evaluate Best Model
+    # --------------------------------------------------------
 
     mae, mse, rmse, r2 = evaluate_model(
-        model,
+        best_model,
         X_test,
         y_test
     )
 
     display_metrics(
-        "SCALED MODEL EVALUATION",
+        "BEST RIDGE MODEL EVALUATION",
         mae,
         mse,
         rmse,
@@ -282,19 +281,10 @@ def main():
     )
 
     # --------------------------------------------------------
-    # Compare Baseline vs Scaled Model
+    # Save Best Model
     # --------------------------------------------------------
 
-    compare_models(
-        baseline_r2,
-        r2
-    )
-
-    # --------------------------------------------------------
-    # Save Final Model
-    # --------------------------------------------------------
-
-    save_model(model)
+    save_model(best_model)
 
 
 # ============================================================
