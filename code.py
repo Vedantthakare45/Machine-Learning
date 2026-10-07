@@ -1,12 +1,17 @@
 # ============================================================
 # HOUSE PRICE PREDICTION
-# Ridge Regression + GridSearchCV
+# Ridge Regression + GridSearchCV + Visualization
 # ============================================================
 
-# 1. Import libraries
+
+# ============================================================
+# 1. Import Libraries
+# ============================================================
+
 import pandas as pd
 import numpy as np
 import joblib
+import matplotlib.pyplot as plt
 
 from sklearn.datasets import fetch_california_housing
 from sklearn.model_selection import train_test_split, GridSearchCV
@@ -203,7 +208,139 @@ def display_best_model(model):
 
 
 # ============================================================
-# 10. Save Best Model
+# 10. Visualization and Residual Analysis
+# ============================================================
+
+def visualize_model(model, X_test, y_test):
+    """Create and save prediction and residual plots."""
+
+    # --------------------------------------------------------
+    # Generate Predictions
+    # --------------------------------------------------------
+
+    y_pred = model.predict(X_test)
+
+    print("\nPredictions generated successfully!")
+
+    # --------------------------------------------------------
+    # 1. Actual vs Predicted Plot
+    # --------------------------------------------------------
+
+    plt.figure(figsize=(8, 6))
+
+    plt.scatter(
+        y_test,
+        y_pred,
+        alpha=0.6
+    )
+
+    # Perfect prediction line
+    plt.plot(
+        [y_test.min(), y_test.max()],
+        [y_test.min(), y_test.max()],
+        linestyle="--"
+    )
+
+    plt.xlabel("Actual Values")
+    plt.ylabel("Predicted Values")
+    plt.title("Actual vs Predicted House Prices")
+
+    plt.tight_layout()
+
+    plt.savefig(
+        "actual_vs_predicted.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
+
+    plt.show()
+
+    plt.close()
+
+    # --------------------------------------------------------
+    # 2. Calculate Residuals
+    # --------------------------------------------------------
+
+    # Residual = Actual - Predicted
+
+    residuals = y_test - y_pred
+
+    print("\nResiduals calculated successfully!")
+
+    # --------------------------------------------------------
+    # 3. Residual Plot
+    # --------------------------------------------------------
+
+    plt.figure(figsize=(8, 6))
+
+    plt.scatter(
+        y_pred,
+        residuals,
+        alpha=0.6
+    )
+
+    # Zero residual reference line
+    plt.axhline(
+        y=0,
+        linestyle="--"
+    )
+
+    plt.xlabel("Predicted Values")
+    plt.ylabel("Residuals")
+    plt.title("Residual Plot")
+
+    plt.tight_layout()
+
+    plt.savefig(
+        "residual_plot.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
+
+    plt.show()
+
+    plt.close()
+
+    # --------------------------------------------------------
+    # 4. Residual Distribution
+    # --------------------------------------------------------
+
+    plt.figure(figsize=(8, 6))
+
+    plt.hist(
+        residuals,
+        bins=30
+    )
+
+    plt.xlabel("Residual")
+    plt.ylabel("Frequency")
+    plt.title("Distribution of Residuals")
+
+    plt.tight_layout()
+
+    plt.savefig(
+        "residual_distribution.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
+
+    plt.show()
+
+    plt.close()
+
+    # --------------------------------------------------------
+    # Display Saved Plot Information
+    # --------------------------------------------------------
+
+    print("\nVisualization plots saved successfully!")
+
+    print("1. actual_vs_predicted.png")
+    print("2. residual_plot.png")
+    print("3. residual_distribution.png")
+
+
+# ============================================================
+# 11. Save Best Model
 # ============================================================
 
 def save_model(model):
@@ -221,7 +358,7 @@ def save_model(model):
 
 
 # ============================================================
-# 11. Main Program
+# 12. Main Program
 # ============================================================
 
 def main():
@@ -281,6 +418,16 @@ def main():
     )
 
     # --------------------------------------------------------
+    # Visualization
+    # --------------------------------------------------------
+
+    visualize_model(
+        best_model,
+        X_test,
+        y_test
+    )
+
+    # --------------------------------------------------------
     # Save Best Model
     # --------------------------------------------------------
 
@@ -288,7 +435,7 @@ def main():
 
 
 # ============================================================
-# 12. Entry Point
+# 13. Entry Point
 # ============================================================
 
 if __name__ == "__main__":
