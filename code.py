@@ -1,36 +1,24 @@
-# ============================================================
-# HOUSE PRICE PREDICTION
-# Linear Regression + Ridge Regression + Decision Tree
-# GridSearchCV + Visualization + Model Comparison
-# ============================================================
-
 
 # ============================================================
-# 1. Import Libraries
+# DAY 12: HOUSE PRICE PREDICTION USING RANDOM FOREST REGRESSOR
+# Dataset: California Housing
+# Models: Linear Regression, Ridge, Decision Tree, Random Forest
 # ============================================================
 
-import pandas as pd
+# 1. IMPORT LIBRARIES
 import numpy as np
-import joblib
+import pandas as pd
 import matplotlib.pyplot as plt
+import joblib
 
 from sklearn.datasets import fetch_california_housing
-
-from sklearn.model_selection import (
-    train_test_split,
-    GridSearchCV
-)
-
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.pipeline import Pipeline
-
 from sklearn.preprocessing import StandardScaler
 
-from sklearn.linear_model import (
-    LinearRegression,
-    Ridge
-)
-
+from sklearn.linear_model import LinearRegression, Ridge
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor
 
 from sklearn.metrics import (
     mean_absolute_error,
@@ -40,53 +28,50 @@ from sklearn.metrics import (
 
 
 # ============================================================
-# 2. Load Dataset
+# 2. LOAD DATASET
 # ============================================================
 
 def load_data():
-    """Load and prepare the California Housing dataset."""
+    print("\nLoading California Housing dataset...")
 
-    data = fetch_california_housing()
+    housing = fetch_california_housing(as_frame=True)
 
-    X = pd.DataFrame(
-        data.data,
-        columns=data.feature_names
-    )
+    X = housing.data
+    y = housing.target
 
-    y = data.target
-
-    print("Dataset loaded successfully!")
+    print("Dataset loaded successfully.")
+    print("Number of rows:", X.shape[0])
+    print("Number of features:", X.shape[1])
+    print("Features:", list(X.columns))
 
     return X, y
 
 
 # ============================================================
-# 3. Inspect Dataset
+# 3. INSPECT DATA
 # ============================================================
 
-def inspect_data(X):
-    """Display basic information about the dataset."""
+def inspect_data(X, y):
+    print("\n========== DATASET INFORMATION ==========")
 
-    print("\nFirst 5 rows:")
+    print("\nFirst five rows:")
     print(X.head())
 
-    print("\nDataset shape:")
-    print(X.shape)
-
-    print("\nColumn names:")
-    print(X.columns.tolist())
+    print("\nDataset information:")
+    X.info()
 
     print("\nMissing values:")
     print(X.isnull().sum())
 
+    print("\nTarget statistics:")
+    print(y.describe())
+
 
 # ============================================================
-# 4. Split Dataset
+# 4. SPLIT DATA INTO TRAINING AND TESTING SETS
 # ============================================================
 
 def split_data(X, y):
-    """Split data into training and testing sets."""
-
     X_train, X_test, y_train, y_test = train_test_split(
         X,
         y,
@@ -94,260 +79,282 @@ def split_data(X, y):
         random_state=42
     )
 
-    print("\nTraining data shape:", X_train.shape)
-    print("Testing data shape :", X_test.shape)
+    print("\n========== DATA SPLITTING ==========")
+    print("Training samples:", X_train.shape[0])
+    print("Testing samples:", X_test.shape[0])
 
     return X_train, X_test, y_train, y_test
 
 
 # ============================================================
-# 5. Train Baseline Linear Regression
+# 5. COMMON MODEL EVALUATION FUNCTION
+# ============================================================
+
+def evaluate_model(model, X_test, y_test, model_name):
+    predictions = model.predict(X_test)
+
+    mae = mean_absolute_error(y_test, predictions)
+    mse = mean_squared_error(y_test, predictions)
+    rmse = np.sqrt(mse)
+    r2 = r2_score(y_test, predictions)
+
+    print(f"\n========== {model_name} RESULTS ==========")
+    print(f"MAE  : {mae:.4f}")
+    print(f"MSE  : {mse:.4f}")
+    print(f"RMSE : {rmse:.4f}")
+    print(f"R²   : {r2:.4f}")
+
+    return {
+        "Model": model_name,
+        "MAE": mae,
+        "MSE": mse,
+        "RMSE": rmse,
+        "R2": r2
+    }
+
+
+# ============================================================
+# 6. TRAIN BASELINE LINEAR REGRESSION
 # ============================================================
 
 def train_linear_regression(X_train, y_train):
-    """Train the baseline Linear Regression model."""
+    print("\nTraining Linear Regression...")
 
-    model = Pipeline([
+    linear_model = Pipeline([
         ("scaler", StandardScaler()),
-        ("linear", LinearRegression())
+        ("model", LinearRegression())
     ])
 
-    model.fit(
-        X_train,
-        y_train
-    )
+    linear_model.fit(X_train, y_train)
 
-    print(
-        "\nBaseline Linear Regression "
-        "trained successfully!"
-    )
+    print("Linear Regression training completed.")
 
-    return model
+    return linear_model
 
 
 # ============================================================
-# 6. Create Ridge Pipeline
+# 7. TRAIN RIDGE REGRESSION WITH GRID SEARCH
 # ============================================================
 
-def create_ridge_pipeline():
-    """Create StandardScaler + Ridge Regression pipeline."""
+def train_ridge_regression(X_train, y_train):
+    print("\nTraining Ridge Regression with GridSearchCV...")
 
-    model = Pipeline([
+    ridge_pipeline = Pipeline([
         ("scaler", StandardScaler()),
-        ("ridge", Ridge())
+        ("model", Ridge())
     ])
-
-    return model
-
-
-# ============================================================
-# 7. Ridge Regression + GridSearchCV
-# ============================================================
-
-def train_ridge_with_gridsearch(X_train, y_train):
-    """Find the best Ridge alpha using GridSearchCV."""
-
-    model = create_ridge_pipeline()
 
     param_grid = {
-        "ridge__alpha": [
-            0.01,
-            0.1,
-            1,
-            10,
-            100
-        ]
+        "model__alpha": [0.01, 0.1, 1, 10, 100]
     }
 
     grid_search = GridSearchCV(
-        estimator=model,
+        estimator=ridge_pipeline,
         param_grid=param_grid,
         cv=5,
         scoring="r2",
         n_jobs=-1
     )
 
-    grid_search.fit(
-        X_train,
-        y_train
-    )
+    grid_search.fit(X_train, y_train)
 
-    print("\nGridSearchCV completed successfully!")
-
-    print("\nBest Alpha:")
-    print(
-        grid_search.best_params_["ridge__alpha"]
-    )
-
-    print("\nBest Cross-Validation R2:")
-    print(
-        grid_search.best_score_
-    )
+    print("Best Ridge parameters:", grid_search.best_params_)
+    print("Best cross-validation R²:", round(
+        grid_search.best_score_, 4
+    ))
 
     return grid_search.best_estimator_
 
 
 # ============================================================
-# 8. Evaluate Model
+# 8. TRAIN DECISION TREE REGRESSION
 # ============================================================
 
-def evaluate_model(model, X_test, y_test):
-    """Calculate regression evaluation metrics."""
+def train_decision_tree(X_train, y_train):
+    print("\nTraining Decision Tree Regressor...")
 
-    predictions = model.predict(X_test)
+    tree_pipeline = Pipeline([
+        ("model", DecisionTreeRegressor(random_state=42))
+    ])
 
-    mae = mean_absolute_error(
-        y_test,
-        predictions
+    param_grid = {
+        "model__max_depth": [3, 5, 10, 15, 20, None],
+        "model__min_samples_leaf": [1, 2, 5]
+    }
+
+    grid_search = GridSearchCV(
+        estimator=tree_pipeline,
+        param_grid=param_grid,
+        cv=5,
+        scoring="r2",
+        n_jobs=-1
     )
 
-    mse = mean_squared_error(
-        y_test,
-        predictions
+    grid_search.fit(X_train, y_train)
+
+    print("Best Decision Tree parameters:", grid_search.best_params_)
+    print("Best cross-validation R²:", round(
+        grid_search.best_score_, 4
+    ))
+
+    return grid_search.best_estimator_
+
+
+# ============================================================
+# 9. DAY 12: RANDOM FOREST PIPELINE
+# ============================================================
+
+def train_random_forest(X_train, y_train):
+    print("\n========== RANDOM FOREST TRAINING ==========")
+
+    # Pipeline integrates Random Forest into the ML workflow.
+    # StandardScaler is retained for consistency with earlier models.
+    # Random Forest itself does not require feature scaling.
+
+    random_forest_pipeline = Pipeline([
+        ("scaler", StandardScaler()),
+        ("model", RandomForestRegressor(
+            n_estimators=100,
+            max_depth=None,
+            min_samples_split=2,
+            min_samples_leaf=1,
+            max_features=1.0,
+            random_state=42,
+            n_jobs=-1
+        ))
+    ])
+
+    # Fit the pipeline on training data
+    random_forest_pipeline.fit(X_train, y_train)
+
+    print("Random Forest training completed.")
+    print("Number of trees:", 100)
+
+    return random_forest_pipeline
+
+
+# ============================================================
+# 10. EXTRACT AND SAVE RANDOM FOREST FEATURE IMPORTANCES
+# ============================================================
+
+def show_feature_importance(random_forest_model, X_train):
+    print("\n========== FEATURE IMPORTANCE ==========")
+
+    # Retrieve the RandomForestRegressor from the pipeline
+    fitted_forest = random_forest_model.named_steps["model"]
+
+    importance_df = pd.DataFrame({
+        "Feature": X_train.columns,
+        "Importance": fitted_forest.feature_importances_
+    })
+
+    importance_df = importance_df.sort_values(
+        by="Importance",
+        ascending=False
+    ).reset_index(drop=True)
+
+    print(importance_df.to_string(index=False))
+
+    # Save importance values to CSV
+    importance_df.to_csv(
+        "random_forest_feature_importance.csv",
+        index=False
     )
 
-    rmse = np.sqrt(mse)
+    # Plot feature importance
+    plt.figure(figsize=(10, 6))
 
-    r2 = r2_score(
-        y_test,
-        predictions
+    plt.barh(
+        importance_df["Feature"],
+        importance_df["Importance"]
     )
 
-    return mae, mse, rmse, r2
+    plt.xlabel("Feature Importance")
+    plt.ylabel("Feature")
+    plt.title("Random Forest Feature Importance")
+    plt.gca().invert_yaxis()
+
+    plt.tight_layout()
+    plt.savefig(
+        "random_forest_feature_importance.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
+    plt.show()
+    plt.close()
+
+    print("\nFeature importance CSV and graph saved.")
+
+    return importance_df
 
 
 # ============================================================
-# 9. Display Evaluation Results
+# 11. VISUALIZE RANDOM FOREST PREDICTIONS
 # ============================================================
 
-def display_metrics(
-    title,
-    mae,
-    mse,
-    rmse,
-    r2
-):
-    """Display model evaluation metrics."""
+def visualize_random_forest(random_forest_model, X_test, y_test):
+    predictions = random_forest_model.predict(X_test)
 
-    print("\n" + "=" * 50)
-    print(title)
-    print("=" * 50)
-
-    print("MAE :", mae)
-    print("MSE :", mse)
-    print("RMSE:", rmse)
-    print("R2  :", r2)
-
-
-# ============================================================
-# 10. Display Best Ridge Model
-# ============================================================
-
-def display_best_model(model):
-    """Display the best Ridge model parameters."""
-
-    best_alpha = model.named_steps["ridge"].alpha
-
-    print("\n" + "=" * 50)
-    print("BEST RIDGE MODEL")
-    print("=" * 50)
-
-    print("Best Alpha:", best_alpha)
-
-
-# ============================================================
-# 11. Visualization and Residual Analysis
-# ============================================================
-
-def visualize_model(model, X_test, y_test):
-    """Create and save prediction and residual plots."""
-
-    # Generate predictions
-    y_pred = model.predict(X_test)
-
-    print("\nPredictions generated successfully!")
-
-    # --------------------------------------------------------
-    # Actual vs Predicted Plot
-    # --------------------------------------------------------
-
+    # Actual vs Predicted
     plt.figure(figsize=(8, 6))
 
     plt.scatter(
         y_test,
-        y_pred,
-        alpha=0.6
+        predictions,
+        alpha=0.4
     )
 
-    # Perfect prediction reference line
+    lower = min(y_test.min(), predictions.min())
+    upper = max(y_test.max(), predictions.max())
+
     plt.plot(
-        [y_test.min(), y_test.max()],
-        [y_test.min(), y_test.max()],
+        [lower, upper],
+        [lower, upper],
         linestyle="--"
     )
 
-    plt.xlabel("Actual Values")
-    plt.ylabel("Predicted Values")
-    plt.title("Actual vs Predicted House Prices")
-
+    plt.xlabel("Actual House Values")
+    plt.ylabel("Predicted House Values")
+    plt.title("Random Forest: Actual vs Predicted")
     plt.tight_layout()
 
     plt.savefig(
-        "actual_vs_predicted.png",
+        "random_forest_actual_vs_predicted.png",
         dpi=300,
         bbox_inches="tight"
     )
 
     plt.show()
-
     plt.close()
 
-    # --------------------------------------------------------
-    # Calculate Residuals
-    # --------------------------------------------------------
-
-    residuals = y_test - y_pred
-
-    print("\nResiduals calculated successfully!")
-
-    # --------------------------------------------------------
-    # Residual Plot
-    # --------------------------------------------------------
+    # Residual plot
+    residuals = y_test - predictions
 
     plt.figure(figsize=(8, 6))
 
     plt.scatter(
-        y_pred,
+        predictions,
         residuals,
-        alpha=0.6
+        alpha=0.4
     )
 
-    # Zero residual reference line
-    plt.axhline(
-        y=0,
-        linestyle="--"
-    )
+    plt.axhline(y=0, linestyle="--")
 
-    plt.xlabel("Predicted Values")
-    plt.ylabel("Residuals")
-    plt.title("Residual Plot")
-
+    plt.xlabel("Predicted House Values")
+    plt.ylabel("Residuals (Actual - Predicted)")
+    plt.title("Random Forest Residual Plot")
     plt.tight_layout()
 
     plt.savefig(
-        "residual_plot.png",
+        "random_forest_residual_plot.png",
         dpi=300,
         bbox_inches="tight"
     )
 
     plt.show()
-
     plt.close()
 
-    # --------------------------------------------------------
-    # Residual Distribution
-    # --------------------------------------------------------
-
+    # Residual distribution
     plt.figure(figsize=(8, 6))
 
     plt.hist(
@@ -357,504 +364,235 @@ def visualize_model(model, X_test, y_test):
 
     plt.xlabel("Residual")
     plt.ylabel("Frequency")
-    plt.title("Distribution of Residuals")
-
+    plt.title("Random Forest Residual Distribution")
     plt.tight_layout()
 
     plt.savefig(
-        "residual_distribution.png",
+        "random_forest_residual_distribution.png",
         dpi=300,
         bbox_inches="tight"
     )
 
     plt.show()
-
     plt.close()
 
-    print("\nVisualization plots saved successfully!")
-
-    print("1. actual_vs_predicted.png")
-    print("2. residual_plot.png")
-    print("3. residual_distribution.png")
-
 
 # ============================================================
-# 12. Train Decision Tree with Different max_depth Values
-# ============================================================
-
-def train_decision_tree(
-    X_train,
-    y_train,
-    X_test,
-    y_test
-):
-    """
-    Train Decision Tree models with different max_depth
-    values and compare their R2 scores.
-    """
-
-    # Depth values to test
-    depths = [
-        1,
-        2,
-        3,
-        5,
-        10,
-        15,
-        20
-    ]
-
-    results = []
-
-    best_model = None
-    best_depth = None
-    best_r2 = -np.inf
-
-    print("\n" + "=" * 50)
-    print("DECISION TREE REGRESSION")
-    print("=" * 50)
-
-    # Test each depth
-    for depth in depths:
-
-        model = DecisionTreeRegressor(
-            max_depth=depth,
-            random_state=42
-        )
-
-        # Train the model
-        model.fit(
-            X_train,
-            y_train
-        )
-
-        # Make predictions
-        predictions = model.predict(
-            X_test
-        )
-
-        # Calculate R2
-        r2 = r2_score(
-            y_test,
-            predictions
-        )
-
-        # Store result
-        results.append({
-            "max_depth": depth,
-            "R2": r2
-        })
-
-        print(
-            f"max_depth = {depth:<3} "
-            f"R2 = {r2:.4f}"
-        )
-
-        # Check whether this is the best model
-        if r2 > best_r2:
-
-            best_r2 = r2
-            best_depth = depth
-            best_model = model
-
-    # Create DataFrame
-    results_df = pd.DataFrame(
-        results
-    )
-
-    print("\nDecision Tree Depth Results:")
-    print(
-        results_df.to_string(
-            index=False
-        )
-    )
-
-    print("\nBest Decision Tree max_depth:")
-    print(best_depth)
-
-    print("\nBest Decision Tree R2:")
-    print(best_r2)
-
-    # Save depth experiment results
-    results_df.to_csv(
-        "decision_tree_depth_results.csv",
-        index=False
-    )
-
-    print(
-        "\nDepth results saved as:"
-        " decision_tree_depth_results.csv"
-    )
-
-    return (
-        best_model,
-        best_depth,
-        results_df
-    )
-
-
-# ============================================================
-# 13. Evaluate Best Decision Tree
-# ============================================================
-
-def evaluate_decision_tree(
-    model,
-    X_test,
-    y_test
-):
-    """Evaluate the best Decision Tree model."""
-
-    metrics = evaluate_model(
-        model,
-        X_test,
-        y_test
-    )
-
-    display_metrics(
-        "BEST DECISION TREE EVALUATION",
-        *metrics
-    )
-
-    return metrics
-
-
-# ============================================================
-# 14. Compare Models
+# 12. COMPARE ALL FOUR MODELS
 # ============================================================
 
 def compare_models(
-    linear_metrics,
-    ridge_metrics,
-    tree_metrics
+    linear_model,
+    ridge_model,
+    tree_model,
+    random_forest_model,
+    X_test,
+    y_test
 ):
-    """
-    Create a comparison table for Linear Regression,
-    Ridge Regression and Decision Tree Regression.
-    """
+    print("\n========== MODEL COMPARISON ==========")
 
-    linear_mae, linear_mse, linear_rmse, linear_r2 = (
-        linear_metrics
-    )
+    results = []
 
-    ridge_mae, ridge_mse, ridge_rmse, ridge_r2 = (
-        ridge_metrics
-    )
-
-    tree_mae, tree_mse, tree_rmse, tree_r2 = (
-        tree_metrics
-    )
-
-    # Create comparison DataFrame
-    comparison = pd.DataFrame({
-
-        "Model": [
-            "Linear Regression",
-            "Ridge Regression",
-            "Decision Tree"
-        ],
-
-        "MAE": [
-            linear_mae,
-            ridge_mae,
-            tree_mae
-        ],
-
-        "MSE": [
-            linear_mse,
-            ridge_mse,
-            tree_mse
-        ],
-
-        "RMSE": [
-            linear_rmse,
-            ridge_rmse,
-            tree_rmse
-        ],
-
-        "R2": [
-            linear_r2,
-            ridge_r2,
-            tree_r2
-        ]
-    })
-
-    print("\n" + "=" * 70)
-    print("MODEL COMPARISON")
-    print("=" * 70)
-
-    print(
-        comparison.to_string(
-            index=False
+    results.append(
+        evaluate_model(
+            linear_model,
+            X_test,
+            y_test,
+            "Linear Regression"
         )
     )
 
-    # Save comparison table
-    comparison.to_csv(
+    results.append(
+        evaluate_model(
+            ridge_model,
+            X_test,
+            y_test,
+            "Ridge Regression"
+        )
+    )
+
+    results.append(
+        evaluate_model(
+            tree_model,
+            X_test,
+            y_test,
+            "Decision Tree"
+        )
+    )
+
+    results.append(
+        evaluate_model(
+            random_forest_model,
+            X_test,
+            y_test,
+            "Random Forest"
+        )
+    )
+
+    comparison_df = pd.DataFrame(results)
+
+    comparison_df = comparison_df.sort_values(
+        by="R2",
+        ascending=False
+    ).reset_index(drop=True)
+
+    print("\nFinal comparison table:")
+    print(comparison_df.round(4).to_string(index=False))
+
+    # Save model comparison
+    comparison_df.to_csv(
         "model_comparison.csv",
         index=False
     )
 
-    print(
-        "\nModel comparison saved as:"
-        " model_comparison.csv"
+    print("\nModel comparison saved to model_comparison.csv")
+
+    # Display R² comparison
+    plt.figure(figsize=(10, 6))
+
+    plt.bar(
+        comparison_df["Model"],
+        comparison_df["R2"]
     )
 
-    return comparison
+    plt.xlabel("Model")
+    plt.ylabel("Test R² Score")
+    plt.title("Comparison of Regression Models")
+    plt.xticks(rotation=20)
+    plt.tight_layout()
+
+    plt.savefig(
+        "model_r2_comparison.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
+
+    plt.show()
+    plt.close()
+
+    best_model_name = comparison_df.iloc[0]["Model"]
+
+    print("\nBest-performing model by test R²:", best_model_name)
+    print("Higher R² generally indicates a better fit.")
+
+    return comparison_df
 
 
 # ============================================================
-# 15. Display Final Insight
+# 13. SAVE TRAINED MODELS
 # ============================================================
 
-def display_final_insight(comparison):
-    """Display which model performed best based on R2."""
+def save_models(
+    ridge_model,
+    tree_model,
+    random_forest_model
+):
+    print("\n========== SAVING MODELS ==========")
 
-    best_index = comparison["R2"].idxmax()
-
-    best_model_name = comparison.loc[
-        best_index,
-        "Model"
-    ]
-
-    best_r2 = comparison.loc[
-        best_index,
-        "R2"
-    ]
-
-    print("\n" + "=" * 50)
-    print("FINAL MODEL INSIGHT")
-    print("=" * 50)
-
-    print(
-        "Best model based on test R2:",
-        best_model_name
-    )
-
-    print(
-        "Best test R2:",
-        best_r2
-    )
-
-    print(
-        "\nA higher R2 indicates better "
-        "explanation of variation in house prices."
-    )
-
-
-# ============================================================
-# 16. Save Best Ridge Model
-# ============================================================
-
-def save_ridge_model(model):
-    """Save the best Ridge model."""
-
-    model_filename = (
+    joblib.dump(
+        ridge_model,
         "house_price_ridge_best_model.pkl"
     )
 
     joblib.dump(
-        model,
-        model_filename
-    )
-
-    print(
-        "\nBest Ridge model saved successfully!"
-    )
-
-    print(
-        "Saved file:",
-        model_filename
-    )
-
-
-# ============================================================
-# 17. Save Best Decision Tree Model
-# ============================================================
-
-def save_tree_model(model):
-    """Save the best Decision Tree model."""
-
-    model_filename = (
+        tree_model,
         "house_price_decision_tree_model.pkl"
     )
 
+    # Save the complete fitted Random Forest pipeline
     joblib.dump(
-        model,
-        model_filename
+        random_forest_model,
+        "house_price_random_forest_model.pkl"
     )
 
-    print(
-        "\nBest Decision Tree model saved successfully!"
-    )
-
-    print(
-        "Saved file:",
-        model_filename
-    )
+    print("Ridge model saved.")
+    print("Decision Tree model saved.")
+    print("Final Random Forest model saved.")
+    print("Filename: house_price_random_forest_model.pkl")
 
 
 # ============================================================
-# 18. Main Program
+# 14. MAIN PROGRAM
 # ============================================================
 
 def main():
-
-    # --------------------------------------------------------
-    # Load Dataset
-    # --------------------------------------------------------
-
+    # Step 1: Load data
     X, y = load_data()
 
-    # --------------------------------------------------------
-    # Inspect Dataset
-    # --------------------------------------------------------
+    # Step 2: Inspect dataset
+    inspect_data(X, y)
 
-    inspect_data(X)
+    # Step 3: Split dataset
+    X_train, X_test, y_train, y_test = split_data(X, y)
 
-    # --------------------------------------------------------
-    # Split Dataset
-    # --------------------------------------------------------
-
-    X_train, X_test, y_train, y_test = split_data(
-        X,
-        y
-    )
-
-    # ========================================================
-    # BASELINE LINEAR REGRESSION
-    # ========================================================
-
+    # Step 4: Train earlier models
     linear_model = train_linear_regression(
         X_train,
         y_train
     )
 
-    linear_metrics = evaluate_model(
-        linear_model,
-        X_test,
-        y_test
-    )
-
-    display_metrics(
-        "BASELINE LINEAR REGRESSION",
-        *linear_metrics
-    )
-
-    # ========================================================
-    # RIDGE REGRESSION + GRIDSEARCHCV
-    # ========================================================
-
-    best_ridge_model = train_ridge_with_gridsearch(
+    ridge_model = train_ridge_regression(
         X_train,
         y_train
     )
 
-    # Display best Ridge model
-    display_best_model(
-        best_ridge_model
-    )
-
-    # Evaluate Ridge
-    ridge_metrics = evaluate_model(
-        best_ridge_model,
-        X_test,
-        y_test
-    )
-
-    display_metrics(
-        "BEST RIDGE MODEL EVALUATION",
-        *ridge_metrics
-    )
-
-    # ========================================================
-    # VISUALIZATION
-    # ========================================================
-
-    visualize_model(
-        best_ridge_model,
-        X_test,
-        y_test
-    )
-
-    # ========================================================
-    # DECISION TREE REGRESSION
-    # ========================================================
-
-    (
-        best_tree_model,
-        best_tree_depth,
-        tree_depth_results
-    ) = train_decision_tree(
+    tree_model = train_decision_tree(
         X_train,
-        y_train,
+        y_train
+    )
+
+    # Step 5: Train Random Forest (Day 12)
+    random_forest_model = train_random_forest(
+        X_train,
+        y_train
+    )
+
+    # Step 6: Evaluate all models and compare
+    comparison_df = compare_models(
+        linear_model,
+        ridge_model,
+        tree_model,
+        random_forest_model,
         X_test,
         y_test
     )
 
-    # ========================================================
-    # EVALUATE BEST DECISION TREE
-    # ========================================================
+    # Step 7: Feature importance
+    importance_df = show_feature_importance(
+        random_forest_model,
+        X_train
+    )
 
-    tree_metrics = evaluate_decision_tree(
-        best_tree_model,
+    # Step 8: Visualize Random Forest predictions
+    visualize_random_forest(
+        random_forest_model,
         X_test,
         y_test
     )
 
-    # ========================================================
-    # MODEL COMPARISON
-    # ========================================================
-
-    comparison_table = compare_models(
-        linear_metrics,
-        ridge_metrics,
-        tree_metrics
+    # Step 9: Persist trained models
+    save_models(
+        ridge_model,
+        tree_model,
+        random_forest_model
     )
 
-    # ========================================================
-    # FINAL INSIGHT
-    # ========================================================
+    # Step 10: Final summary
+    print("\n========== DAY 12 COMPLETED ==========")
+    print("Random Forest pipeline trained and evaluated.")
+    print("Feature importance analysis completed.")
+    print("All four models compared.")
+    print("Final Random Forest model persisted successfully.")
 
-    display_final_insight(
-        comparison_table
-    )
+    print("\nTop three important features:")
+    print(importance_df.head(3).to_string(index=False))
 
-    # ========================================================
-    # SAVE MODELS
-    # ========================================================
-
-    save_ridge_model(
-        best_ridge_model
-    )
-
-    save_tree_model(
-        best_tree_model
-    )
-
-    # ========================================================
-    # FINAL OUTPUT
-    # ========================================================
-
-    print("\n" + "=" * 70)
-    print("PROJECT COMPLETED SUCCESSFULLY!")
-    print("=" * 70)
-
-    print("\nBest Decision Tree Depth:")
-    print(best_tree_depth)
-
-    print("\nGenerated Files:")
-
-    print("1. actual_vs_predicted.png")
-    print("2. residual_plot.png")
-    print("3. residual_distribution.png")
-    print("4. decision_tree_depth_results.csv")
-    print("5. model_comparison.csv")
-    print("6. house_price_ridge_best_model.pkl")
-    print("7. house_price_decision_tree_model.pkl")
+    print("\nFinal model comparison:")
+    print(comparison_df.round(4).to_string(index=False))
 
 
 # ============================================================
-# 19. Entry Point
+# 15. RUN THE PROGRAM
 # ============================================================
 
 if __name__ == "__main__":
